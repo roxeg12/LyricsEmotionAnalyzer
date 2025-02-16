@@ -1,4 +1,5 @@
 # Main File for this program
+import string
 import lyricsgenius
 import os
 from dotenv import load_dotenv
@@ -37,6 +38,9 @@ def clean_lyrics(lyrics: str) -> str:
         the same lyrics, with non-lyric text removed and white space minimized
 
     """
+    # remove conributor information
+    lyrics = lyrics.partition(" Contributors")[2]
+
     # remove text in brackets
     lyrics = re.sub(r'\[.*?\]', '', lyrics)
 
@@ -71,7 +75,7 @@ def fetch_album_lyrics(genius: lyricsgenius.Genius, album_name: str, artist_name
 
         print(f"{track['song']['title']} lyrics: {track['song']['lyrics']}")
 
-    with open('songs_lyrics_data.json', 'w', encoding='utf-8') as f:
+    with open('songs_lyrics_data1.json', 'w', encoding='utf-8') as f:
         json.dump(songs_data, f, ensure_ascii=False, indent=4)
     return
 
