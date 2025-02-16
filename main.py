@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import re
 import json
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 def genius_setup() -> lyricsgenius.Genius:
@@ -203,8 +204,69 @@ def fetch_and_analyze_album_lyrics(genius: lyricsgenius.Genius, album_name: str,
 
     with open('songs_lyrics_data1.json', 'w', encoding='utf-8') as f:
         json.dump(songs_data, f, ensure_ascii=False, indent=4)
-    return
+    return songs_data
 
+def plot_emotion_journey(album_data, use_norm=True, include_sent=False):
+
+    emotions = ['anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
+    sentiments = ['positive', 'negative']
+
+    if include_sent:
+        emotions.extend(sentiments)
+
+    
+    emotion_series = {emotion: [] for emotion in emotions}
+    song_titles = []
+    
+    for song in album_data:
+        song_titles.append(song['song_title'])
+        
+        for emotion in emotions:
+            if use_norm:
+                score = song.get('normalized_emotion_scores', {}).get(emotion, 0)
+            else:
+                score = song.get('emotion_scores', {}).get(emotion, 0)
+
+            emotion_series[emotion].append(score)
+
+    plt.figure(figsize=(12, 6))
+    for emotion, scores in emotion_series.items():
+        plt.plot(song_titles, scores, marker='o', label=emotion)
+    plt.xticks(rotation=45)
+    plt.title(f"Emotion Journey Across Album ({'Normalized' if use_norm else 'Raw'})")
+    plt.xlabel("Songs")
+    plt.ylabel(f"{'Normalized' if use_norm else 'Raw'} Emotion Score")
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+    plt.show()
+
+def plot_stacked_emotion_composite(album_data, use_norm=True):
+
+    emotions = ['anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
+    
+    data = []
+    song_titles = []
+
+    for song in album_data:
+        song_titles.append(song['song_title'])
+
+        if use_norm:
+            row = [song['normalized_emotion_scores'].get(e, 0) for e in emotions]
+        else:
+            row = [song['emotion_scores'].get(e, 0) for e in emotions]
+        
+        data.append(row)
+    
+    df = pd.DataFrame(data, columns=emotions, index=song_titles)
+
+    ax = df.plot(kind='area', stacked=True, figsize=(12, 6), alpha=0.7)
+    plt.title(f"Emotional Composition across {album_data[0]['album']} ({'Normalized' if use_norm else 'Raw'})")
+    plt.xlabel('Song')
+    plt.ylabel('Emotion Score')
+    plt.xticks(range(len(song_titles)), song_titles, rotation=45)
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -214,4 +276,8 @@ if __name__ == "__main__":
 
     lex = load_nrc_lexicon("./NRC-Emotion-Lexicon-Wordlevel-v0.92.txt")
 
-    fetch_and_analyze_album_lyrics(genius, album_name, artist_name, lex)
+    album_data = fetch_and_analyze_album_lyrics(genius, album_name, artist_name, lex)
+
+    # plot_emotion_journey(album_data)
+
+    plot_stacked_emotion_composite(album_data)
