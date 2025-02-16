@@ -38,8 +38,8 @@ def clean_lyrics(lyrics: str) -> str:
         the same lyrics, with non-lyric text removed and white space minimized
 
     """
-    # remove conributor information
-    lyrics = lyrics.partition(" Contributors")[2]
+    # remove conributor and song title information
+    lyrics = lyrics.partition(" Lyrics")[2]
 
     # remove text in brackets
     lyrics = re.sub(r'\[.*?\]', '', lyrics)
