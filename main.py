@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 import re
 import json
+import matplotlib.pyplot as plt
 
 
 def genius_setup() -> lyricsgenius.Genius:
@@ -120,10 +121,23 @@ def load_nrc_lexicon(filepath: str) -> dict[str, dict[str, int]]:
                 emotion_dict[word][emotion] = 1
     return emotion_dict
 
+def normalize_scores(scores: dict, total_words: int) -> dict:
+    """
+    Converts raw emotion word counts to percentage of total words
+
+    """
+    if total_words == 0:
+        return {k: 0.0 for k in scores.keys()}
+
+    normalized_scores = {emotion: round(count / total_words, 4) for emotion, count in scores.items()}
+    return normalized_scores
+
 def analyze_lyric_emotions(lyrics: str, nrc_lexicon: dict) -> dict[str, int]:
 
     # clean lyrics into lowercase words
     words = re.findall(r'\b\w+\b', lyrics.lower())
+
+    total_words = len(words)
 
     # initialize emotion counters
     emotion_scores = defaultdict(int)
@@ -133,8 +147,19 @@ def analyze_lyric_emotions(lyrics: str, nrc_lexicon: dict) -> dict[str, int]:
         if word in nrc_lexicon:
             for emotion, value in nrc_lexicon[word].items():
                 emotion_scores[emotion] += value
+
+    raw_scores = dict(emotion_scores)
+
+    normalized_scores = normalize_scores(raw_scores, total_words)
+
+    scores = {
+        "raw": raw_scores,
+        "normalized": normalized_scores
+    }
     
-    return dict(emotion_scores)
+    return scores
+
+
 
 def fetch_and_analyze_album_lyrics(genius: lyricsgenius.Genius, album_name: str, artist_name: str, nrc_lexicon: dict):
     """
@@ -159,13 +184,16 @@ def fetch_and_analyze_album_lyrics(genius: lyricsgenius.Genius, album_name: str,
     # store data for each song as JSON
     for track1 in album.tracks:
         track = track1.to_dict()
+        cleaned_lyrics = clean_lyrics(track['song']['lyrics'])
+        emotion_analysis = analyze_lyric_emotions(cleaned_lyrics, nrc_lexicon)
         song_data = {
             "artist": artist_name,
             "album": album_name,
             "song_title": track['song']['title'],
             "lyrics": track['song']['lyrics'],
-            "cleaned_lyrics": clean_lyrics(track['song']['lyrics']),
-            "emotion_scores": analyze_lyric_emotions(track['song']['lyrics'], nrc_lexicon),
+            "cleaned_lyrics": cleaned_lyrics,
+            "emotion_scores": emotion_analysis['raw'],
+            "normalized_emotion_scores": emotion_analysis['normalized'],
             "line_by_line_analysis": None,
             "spotify_features": None
         }
@@ -176,6 +204,7 @@ def fetch_and_analyze_album_lyrics(genius: lyricsgenius.Genius, album_name: str,
     with open('songs_lyrics_data1.json', 'w', encoding='utf-8') as f:
         json.dump(songs_data, f, ensure_ascii=False, indent=4)
     return
+
 
 
 if __name__ == "__main__":
