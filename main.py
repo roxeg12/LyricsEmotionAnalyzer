@@ -7,6 +7,8 @@ import re
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
+import numpy as np
 
 
 def genius_setup() -> lyricsgenius.Genius:
@@ -50,48 +52,6 @@ def clean_lyrics(lyrics: str) -> str:
     lyrics = re.sub(r'\n+', ' ', lyrics)
     return lyrics.strip()
 
-'''
-def fetch_album_lyrics(genius: lyricsgenius.Genius, album_name: str, artist_name: str):
-    """
-    Retrieves the lyrics from the album with name album_name by album_artist and stores each
-    song's data in a joint JSON file, including the cleaned song lyrics
-
-    Inputs:
-        - genius: the lyricsgenius.Genius object associated with a valid API token
-        - album_name: a valid album name
-        - artist_name: a valid artist name that has produced the album denoted by album_name
-    Returns:
-        Nothing
-
-    Requires:
-        genius has already been instantiated
-    """
-    album = genius.search_album(album_name, artist_name)
-    
-    
-    songs_data = []
-
-    # store data for each song as JSON
-    for track1 in album.tracks:
-        track = track1.to_dict()
-        song_data = {
-            "artist": artist_name,
-            "album": album_name,
-            "song_title": track['song']['title'],
-            "lyrics": track['song']['lyrics'],
-            "cleaned_lyrics": clean_lyrics(track['song']['lyrics']),
-            "emotion_scores": None,
-            "line_by_line_analysis": None,
-            "spotify_features": None
-        }
-        songs_data.append(song_data)
-
-        print(f"{track['song']['title']} lyrics: {track['song']['lyrics']}")
-
-    with open('songs_lyrics_data1.json', 'w', encoding='utf-8') as f:
-        json.dump(songs_data, f, ensure_ascii=False, indent=4)
-    return
-'''
 
 def load_nrc_lexicon(filepath: str) -> dict[str, dict[str, int]]:
     """
@@ -206,9 +166,8 @@ def fetch_and_analyze_album_lyrics(genius: lyricsgenius.Genius, album_name: str,
         json.dump(songs_data, f, ensure_ascii=False, indent=4)
     return songs_data
 
-def plot_emotion_journey(album_data, use_norm=True, include_sent=False):
+def plot_emotion_journey(album_data, emotions, use_norm=True, include_sent=False):
 
-    emotions = ['anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
     sentiments = ['positive', 'negative']
 
     if include_sent:
@@ -240,9 +199,8 @@ def plot_emotion_journey(album_data, use_norm=True, include_sent=False):
     plt.tight_layout()
     plt.show()
 
-def plot_stacked_emotion_composite(album_data, use_norm=True):
+def plot_stacked_emotion_composite(album_data, emotions, use_norm=True):
 
-    emotions = ['anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
     
     data = []
     song_titles = []
@@ -268,11 +226,65 @@ def plot_stacked_emotion_composite(album_data, use_norm=True):
     plt.tight_layout()
     plt.show()
 
+def plot_emotion_heatmap(album_data, emotions, use_norm=True):
+    
+    data = []
+    song_titles = []
+
+    for song in album_data:
+        song_titles.append(song['song_title'])
+        if use_norm:
+            row = [song['normalized_emotion_scores'].get(e, 0) for e in emotions]
+        else:
+            row = [song['emotion_scores'].get(e, 0) for e in emotions]
+        data.append(row)
+    
+    df = pd.DataFrame(data, columns=emotions, index=song_titles)
+
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(df, annot=True, fmt=".2f", cmap="YlGnBu", linewidths=0.5)
+    plt.title(f"Emotion Heatmap Across {album_data[0]['album']} ({'Normalized' if use_norm else 'Raw'})")
+    plt.xlabel("Emotions")
+    plt.ylabel("Songs")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+def plot_stacked_emotion_dist(album_data, emotions, use_norm=True):
+    
+    song_titles = []
+    emotion_values = {emotion: [] for emotion in emotions}
+
+    for song in album_data:
+        song_titles.append(song['song_title'])
+        for emotion in emotions:
+            if use_norm:
+                score = song.get('normalized_emotion_scores', {}).get(emotion, 0)
+            else:
+                score = song.get('emotion_scores', {}).get(emotion, 0)
+            emotion_values[emotion].append(score)
+
+    bottom_vals = np.zeros(len(song_titles))
+    plt.figure(figsize=(12, 6))
+
+    for emotion in emotions:
+        plt.bar(song_titles, emotion_values[emotion], bottom=bottom_vals, label=emotion)
+        bottom_vals += np.array(emotion_values[emotion])
+
+    plt.xticks(rotation=45)
+    plt.ylabel(f"{'Normalized' if use_norm else 'Raw'} Emotion Score")
+    plt.xlabel("Songs")
+    plt.title(f"Emotion Distribution Across {album_data[0]['album']} by {album_data[0]['artist']} ({'Normalized' if use_norm else 'Raw'})")
+    plt.legend(loc="upper right", bbox_to_anchor=(1.2, 1))
+    plt.tight_layout()
+    plt.show()
 
 if __name__ == "__main__":
     genius = genius_setup()
     album_name = input("Search for album: ")
     artist_name = input("By artist: ")
+
+    emotions = ['anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
 
     lex = load_nrc_lexicon("./NRC-Emotion-Lexicon-Wordlevel-v0.92.txt")
 
@@ -280,4 +292,8 @@ if __name__ == "__main__":
 
     # plot_emotion_journey(album_data)
 
-    plot_stacked_emotion_composite(album_data)
+    # plot_stacked_emotion_composite(album_data, emotions)
+
+    # plot_emotion_heatmap(album_data, emotions)
+
+    plot_stacked_emotion_dist(album_data, emotions)
