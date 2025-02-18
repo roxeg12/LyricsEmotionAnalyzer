@@ -240,7 +240,7 @@ def plot_emotion_journey(album_data, emotions, use_norm=True, include_sent=False
     for emotion, scores in emotion_series.items():
         plt.plot(song_titles, scores, marker='o', label=emotion)
     plt.xticks(rotation=45)
-    plt.title(f"Emotion Journey Across Album ({'Normalized' if use_norm else 'Raw'})")
+    plt.title(f"Emotion Journey Across {album_data[0]['album']} by {album_data[0]['artist']} ({'Normalized' if use_norm else 'Raw'})")
     plt.xlabel("Songs")
     plt.ylabel(f"{'Normalized' if use_norm else 'Raw'} Emotion Score")
     plt.legend(loc='upper right')
